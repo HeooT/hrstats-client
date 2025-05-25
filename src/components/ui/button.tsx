@@ -1,11 +1,10 @@
-'use client'
+import React from "react";
 
-import * as React from 'react'
-
-export function Button({ children }: { children: React.ReactNode }) {
+export function Button({ className, ...props }) {
   return (
-    <button style={{ padding: '8px 16px', background: '#222', color: '#fff' }}>
-      {children}
-    </button>
-  )
+    <button
+      className={`inline-flex items-center justify-center rounded-md px-4 py-2 font-medium text-white bg-blue-600 hover:bg-blue-700 ${className}`}
+      {...props}
+    />
+  );
 }

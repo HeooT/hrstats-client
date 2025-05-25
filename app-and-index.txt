@@ -1,0 +1,388 @@
+// client/src/App.js
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+// 공통 컴포넌트
+import Layout from './components/layout/Layout';
+
+// 인증 관련 페이지
+import LoginForm from './pages/Auth/LoginForm';
+import RegisterForm from './pages/Auth/RegisterForm';
+
+// 기업 정보 관련 페이지
+import CompanyInfoForm from './pages/CompanyInfo/CompanyInfoForm';
+
+// 진단 유형 선택 페이지
+import DiagnosisTypePage from './pages/DiagnosisType/DiagnosisTypePage';
+
+// 경영진단 관련 페이지
+import FinancialStatementForm from './pages/Financial/FinancialStatementForm';
+import FinancialAnalysisDashboard from './pages/Analysis/FinancialAnalysisDashboard';
+
+// 조직진단 관련 페이지
+// import OrganizationForm from './pages/Organization/OrganizationForm';
+// import OrganizationAnalysisDashboard from './pages/Analysis/OrganizationAnalysisDashboard';
+
+// 직무진단 관련 페이지
+// import JobForm from './pages/Job/JobForm';
+// import JobAnalysisDashboard from './pages/Analysis/JobAnalysisDashboard';
+
+// 설문진단 관련 페이지
+// import SurveyForm from './pages/Survey/SurveyForm';
+// import SurveyAnalysisDashboard from './pages/Analysis/SurveyAnalysisDashboard';
+
+// 종합진단 관련 페이지
+// import ComprehensiveAnalysisDashboard from './pages/Analysis/ComprehensiveAnalysisDashboard';
+
+// 인증 상태 확인 HOC
+const PrivateRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    // 로그인 페이지로 리다이렉트
+    return <Navigate to="/login" />;
+  }
+  
+  return children;
+};
+
+const App = () => {
+  return (
+    <Router>
+      <ToastContainer position="top-right" autoClose={3000} />
+      <Routes>
+        {/* 인증 관련 라우트 */}
+        <Route path="/login" element={<LoginForm />} />
+        <Route path="/register" element={<RegisterForm />} />
+        
+        {/* 인증이 필요한 라우트 */}
+        <Route path="/" element={
+          <PrivateRoute>
+            <Layout>
+              <DiagnosisTypePage />
+            </Layout>
+          </PrivateRoute>
+        } />
+        
+        <Route path="/company-info" element={
+          <PrivateRoute>
+            <Layout>
+              <CompanyInfoForm />
+            </Layout>
+          </PrivateRoute>
+        } />
+        
+        <Route path="/diagnosis-type" element={
+          <PrivateRoute>
+            <Layout>
+              <DiagnosisTypePage />
+            </Layout>
+          </PrivateRoute>
+        } />
+        
+        {/* 경영진단 관련 라우트 */}
+        <Route path="/financial/:year" element={
+          <PrivateRoute>
+            <Layout>
+              <FinancialStatementForm />
+            </Layout>
+          </PrivateRoute>
+        } />
+        
+        <Route path="/financial/analysis/:year" element={
+          <PrivateRoute>
+            <Layout>
+              <FinancialAnalysisDashboard />
+            </Layout>
+          </PrivateRoute>
+        } />
+        
+        {/* 조직진단 관련 라우트 */}
+        {/*
+        <Route path="/organization/:year" element={
+          <PrivateRoute>
+            <Layout>
+              <OrganizationForm />
+            </Layout>
+          </PrivateRoute>
+        } />
+        
+        <Route path="/organization/analysis/:year" element={
+          <PrivateRoute>
+            <Layout>
+              <OrganizationAnalysisDashboard />
+            </Layout>
+          </PrivateRoute>
+        } />
+        */}
+        
+        {/* 직무진단 관련 라우트 */}
+        {/*
+        <Route path="/job/:year" element={
+          <PrivateRoute>
+            <Layout>
+              <JobForm />
+            </Layout>
+          </PrivateRoute>
+        } />
+        
+        <Route path="/job/analysis/:year" element={
+          <PrivateRoute>
+            <Layout>
+              <JobAnalysisDashboard />
+            </Layout>
+          </PrivateRoute>
+        } />
+        */}
+        
+        {/* 설문진단 관련 라우트 */}
+        {/*
+        <Route path="/survey/:year" element={
+          <PrivateRoute>
+            <Layout>
+              <SurveyForm />
+            </Layout>
+          </PrivateRoute>
+        } />
+        
+        <Route path="/survey/analysis/:year" element={
+          <PrivateRoute>
+            <Layout>
+              <SurveyAnalysisDashboard />
+            </Layout>
+          </PrivateRoute>
+        } />
+        */}
+        
+        {/* 종합진단 관련 라우트 */}
+        {/*
+        <Route path="/comprehensive/:year" element={
+          <PrivateRoute>
+            <Layout>
+              <ComprehensiveAnalysisDashboard />
+            </Layout>
+          </PrivateRoute>
+        } />
+        */}
+        
+        {/* 기본 리다이렉트 */}
+        <Route path="*" element={<Navigate to="/login" />} />
+      </Routes>
+    </Router>
+  );
+};
+
+export default App;
+
+// client/src/index.js
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import './index.css';
+import App from './App';
+import axios from 'axios';
+
+// API 기본 URL 설정
+axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+// Tailwind CSS 스타일 적용
+import './tailwind.css';
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+
+// client/src/components/layout/Layout.js
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import axios from 'axios';
+
+const Layout = ({ children }) => {
+  const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          navigate('/login');
+          return;
+        }
+        
+        const response = await axios.get('/api/auth/user', {
+          headers: { 'x-auth-token': token }
+        });
+        
+        if (response.data) {
+          setUser(response.data);
+        }
+      } catch (error) {
+        console.error('사용자 정보 조회 실패:', error);
+        // 인증 실패 시 로그인 페이지로 리다이렉트
+        localStorage.removeItem('token');
+        navigate('/login');
+      }
+    };
+    
+    fetchUser();
+  }, [navigate]);
+  
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    navigate('/login');
+  };
+  
+  return (
+    <div className="min-h-screen bg-gray-100">
+      {/* 헤더 */}
+      <nav className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex">
+              <div className="flex-shrink-0 flex items-center">
+                <Link to="/" className="text-xl font-bold text-blue-600">
+                  HR Stats
+                </Link>
+              </div>
+              <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+                <Link
+                  to="/diagnosis-type"
+                  className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                >
+                  진단 유형
+                </Link>
+                <Link
+                  to="/company-info"
+                  className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                >
+                  기업 정보
+                </Link>
+              </div>
+            </div>
+            <div className="hidden sm:ml-6 sm:flex sm:items-center">
+              <div className="ml-3 relative">
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm text-gray-700">
+                    {user?.name || '사용자'} 님
+                  </span>
+                  <button
+                    onClick={handleLogout}
+                    className="text-sm text-gray-500 hover:text-gray-700"
+                  >
+                    로그아웃
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="-mr-2 flex items-center sm:hidden">
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+              >
+                <span className="sr-only">메뉴 열기</span>
+                <svg
+                  className={`${isMenuOpen ? 'hidden' : 'block'} h-6 w-6`}
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
+                <svg
+                  className={`${isMenuOpen ? 'block' : 'hidden'} h-6 w-6`}
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        {/* 모바일 메뉴 */}
+        <div className={`${isMenuOpen ? 'block' : 'hidden'} sm:hidden`}>
+          <div className="pt-2 pb-3 space-y-1">
+            <Link
+              to="/diagnosis-type"
+              className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              진단 유형
+            </Link>
+            <Link
+              to="/company-info"
+              className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              기업 정보
+            </Link>
+          </div>
+          <div className="pt-4 pb-3 border-t border-gray-200">
+            <div className="flex items-center px-4">
+              <div className="ml-3">
+                <div className="text-base font-medium text-gray-800">
+                  {user?.name || '사용자'} 님
+                </div>
+                <div className="text-sm font-medium text-gray-500">
+                  {user?.email || ''}
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 space-y-1">
+              <button
+                onClick={() => {
+                  handleLogout();
+                  setIsMenuOpen(false);
+                }}
+                className="block w-full text-left px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+              >
+                로그아웃
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+      
+      {/* 메인 콘텐츠 */}
+      <main className="py-6">
+        <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
+          {children}
+        </div>
+      </main>
+      
+      {/* 푸터 */}
+      <footer className="bg-white">
+        <div className="max-w-7xl mx-auto py-6 px-4 overflow-hidden sm:px-6 lg:px-8">
+          <p className="text-center text-sm text-gray-500">
+            &copy; {new Date().getFullYear()} 인사이트 컨설팅. All rights reserved.
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default Layout;
+            

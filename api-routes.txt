@@ -1,0 +1,161 @@
+// server/routes/auth.js
+const express = require('express');
+const router = express.Router();
+const { check } = require('express-validator');
+const authController = require('../controllers/authController');
+const auth = require('../middleware/auth');
+
+// @route   POST api/auth/register
+// @desc    사용자 등록
+// @access  Public
+router.post(
+  '/register',
+  [
+    check('name', '이름을 입력해주세요').not().isEmpty(),
+    check('email', '유효한 이메일을 입력해주세요').isEmail(),
+    check('password', '6자 이상의 비밀번호를 입력해주세요').isLength({ min: 6 })
+  ],
+  authController.register
+);
+
+// @route   POST api/auth/login
+// @desc    사용자 로그인 및 토큰 발급
+// @access  Public
+router.post(
+  '/login',
+  [
+    check('email', '유효한 이메일을 입력해주세요').isEmail(),
+    check('password', '비밀번호를 입력해주세요').exists()
+  ],
+  authController.login
+);
+
+// @route   GET api/auth/user
+// @desc    현재 사용자 정보 조회
+// @access  Private
+router.get('/user', auth, authController.getUser);
+
+module.exports = router;
+
+// server/routes/company.js
+const express = require('express');
+const router = express.Router();
+const { check } = require('express-validator');
+const companyController = require('../controllers/companyController');
+const auth = require('../middleware/auth');
+
+// @route   POST api/company
+// @desc    기업 정보 등록
+// @access  Private
+router.post(
+  '/',
+  [
+    auth,
+    [
+      check('name', '기업명을 입력해주세요').not().isEmpty(),
+      check('industry', '업종을 선택해주세요').not().isEmpty(),
+      check('size', '기업 규모를 선택해주세요').not().isEmpty(),
+      check('businessNumber', '사업자 등록번호를 입력해주세요').not().isEmpty()
+    ]
+  ],
+  companyController.createCompany
+);
+
+// @route   GET api/company
+// @desc    기업 정보 조회
+// @access  Private
+router.get('/', auth, companyController.getCompany);
+
+// @route   PUT api/company
+// @desc    기업 정보 수정
+// @access  Private
+router.put('/', auth, companyController.updateCompany);
+
+module.exports = router;
+
+// server/routes/financial.js
+const express = require('express');
+const router = express.Router();
+const financialController = require('../controllers/financialController');
+const auth = require('../middleware/auth');
+
+// @route   POST api/financial
+// @desc    재무제표/손익계산서/인원현황 데이터 등록
+// @access  Private
+router.post('/', auth, financialController.createFinancialData);
+
+// @route   GET api/financial/:year
+// @desc    특정 연도의 재무제표/손익계산서/인원현황 데이터 조회
+// @access  Private
+router.get('/:year', auth, financialController.getFinancialData);
+
+// @route   PUT api/financial/:year
+// @desc    특정 연도의 재무제표/손익계산서/인원현황 데이터 수정
+// @access  Private
+router.put('/:year', auth, financialController.updateFinancialData);
+
+// @route   GET api/financial
+// @desc    전체 연도의 재무제표/손익계산서/인원현황 데이터 조회
+// @access  Private
+router.get('/', auth, financialController.getAllFinancialData);
+
+module.exports = router;
+
+// server/routes/organization.js
+const express = require('express');
+const router = express.Router();
+const organizationController = require('../controllers/organizationController');
+const auth = require('../middleware/auth');
+
+// @route   POST api/organization
+// @desc    조직 데이터 등록
+// @access  Private
+router.post('/', auth, organizationController.createOrganizationData);
+
+// @route   GET api/organization/:year
+// @desc    특정 연도의 조직 데이터 조회
+// @access  Private
+router.get('/:year', auth, organizationController.getOrganizationData);
+
+// @route   PUT api/organization/:year
+// @desc    특정 연도의 조직 데이터 수정
+// @access  Private
+router.put('/:year', auth, organizationController.updateOrganizationData);
+
+module.exports = router;
+
+// server/routes/job.js
+const express = require('express');
+const router = express.Router();
+const jobController = require('../controllers/jobController');
+const auth = require('../middleware/auth');
+
+// @route   POST api/job
+// @desc    직무 데이터 등록
+// @access  Private
+router.post('/', auth, jobController.createJobData);
+
+// @route   GET api/job/:year
+// @desc    특정 연도의 직무 데이터 조회
+// @access  Private
+router.get('/:year', auth, jobController.getJobData);
+
+// @route   PUT api/job/:year
+// @desc    특정 연도의 직무 데이터 수정
+// @access  Private
+router.put('/:year', auth, jobController.updateJobData);
+
+module.exports = router;
+
+// server/routes/survey.js
+const express = require('express');
+const router = express.Router();
+const surveyController = require('../controllers/surveyController');
+const auth = require('../middleware/auth');
+
+// @route   POST api/survey
+// @desc    설문 데이터 등록
+// @access  Private
+router.post('/', auth, surveyController.createSurveyData);
+
+// @route   GET api/survey/:

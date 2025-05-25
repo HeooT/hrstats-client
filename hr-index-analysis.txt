@@ -1,0 +1,383 @@
+	// server/services/analysis/financialAnalysis.js
+
+/**
+ * 경영진단을 위한 HR Index 분석 서비스
+ * - 재무제표, 손익계산서, 인원현황 데이터를 분석하여 HR Index 산출
+ */
+
+/**
+ * 성장성 지표 계산
+ * @param {Object} currentYearData - 당해년도 재무 데이터
+ * @param {Object} previousYearData - 전년도 재무 데이터
+ * @returns {Object} 성장성 지표
+ */
+const calculateGrowthIndicators = (currentYearData, previousYearData) => {
+  // 매출액 증가율 = (당해년도 매출액 - 전년도 매출액) / 전년도 매출액 × 100
+  const revenueGrowthRate = previousYearData && previousYearData.incomeStatement.revenue > 0
+    ? ((currentYearData.incomeStatement.revenue - previousYearData.incomeStatement.revenue) / previousYearData.incomeStatement.revenue) * 100
+    : 0;
+
+  // 총자산 증가율 = (당해년도 총자산 - 전년도 총자산) / 전년도 총자산 × 100
+  const totalAssets = currentYearData.financialStatement.assets.current + currentYearData.financialStatement.assets.nonCurrent;
+  const prevTotalAssets = previousYearData
+    ? previousYearData.financialStatement.assets.current + previousYearData.financialStatement.assets.nonCurrent
+    : 0;
+  
+  const assetGrowthRate = previousYearData && prevTotalAssets > 0
+    ? ((totalAssets - prevTotalAssets) / prevTotalAssets) * 100
+    : 0;
+
+  return {
+    revenueGrowthRate: parseFloat(revenueGrowthRate.toFixed(2)),
+    assetGrowthRate: parseFloat(assetGrowthRate.toFixed(2))
+  };
+};
+
+/**
+ * 수익성 지표 계산
+ * @param {Object} currentYearData - 당해년도 재무 데이터
+ * @param {Object} previousYearData - 전년도 재무 데이터
+ * @returns {Object} 수익성 지표
+ */
+const calculateProfitabilityIndicators = (currentYearData, previousYearData) => {
+  // 영업이익 증가율 = (당해년도 영업이익 - 전년도 영업이익) / 전년도 영업이익 × 100
+  const operatingProfitGrowthRate = previousYearData && previousYearData.incomeStatement.operatingProfit > 0
+    ? ((currentYearData.incomeStatement.operatingProfit - previousYearData.incomeStatement.operatingProfit) / previousYearData.incomeStatement.operatingProfit) * 100
+    : 0;
+
+  // 영업이익 대 매출액 비율 = 영업이익 / 매출액 × 100
+  const operatingProfitToRevenueRatio = currentYearData.incomeStatement.revenue > 0
+    ? (currentYearData.incomeStatement.operatingProfit / currentYearData.incomeStatement.revenue) * 100
+    : 0;
+
+  return {
+    operatingProfitGrowthRate: parseFloat(operatingProfitGrowthRate.toFixed(2)),
+    operatingProfitToRevenueRatio: parseFloat(operatingProfitToRevenueRatio.toFixed(2))
+  };
+};
+
+/**
+ * 안정성 지표 계산
+ * @param {Object} financialData - 재무 데이터
+ * @returns {Object} 안정성 지표
+ */
+const calculateStabilityIndicators = (financialData) => {
+  const totalAssets = financialData.financialStatement.assets.current + financialData.financialStatement.assets.nonCurrent;
+  const totalLiabilities = financialData.financialStatement.liabilities.current + financialData.financialStatement.liabilities.nonCurrent;
+  const equity = financialData.financialStatement.equity;
+
+  // 부채비율 = 총부채 / 총자본 × 100
+  const debtRatio = equity > 0
+    ? (totalLiabilities / equity) * 100
+    : 0;
+
+  // 유동비율 = 유동자산 / 유동부채 × 100
+  const currentRatio = financialData.financialStatement.liabilities.current > 0
+    ? (financialData.financialStatement.assets.current / financialData.financialStatement.liabilities.current) * 100
+    : 0;
+
+  return {
+    debtRatio: parseFloat(debtRatio.toFixed(2)),
+    currentRatio: parseFloat(currentRatio.toFixed(2))
+  };
+};
+
+/**
+ * 효율성 지표 계산
+ * @param {Object} financialData - 재무 데이터
+ * @returns {Object} 효율성 지표
+ */
+const calculateEfficiencyIndicators = (financialData) => {
+  // 총 인원 계산
+  const totalEmployees =
+    (financialData.employeeData.employees.regular || 0) +
+    (financialData.employeeData.employees.nonRegular || 0) +
+    (financialData.employeeData.nonEmployees.contracted || 0) +
+    (financialData.employeeData.nonEmployees.dispatched || 0);
+
+  // 총자산 계산
+  const totalAssets = financialData.financialStatement.assets.current + financialData.financialStatement.assets.nonCurrent;
+  
+  // 인당 매출액 = 매출액 / 총인원
+  const revenuePerEmployee = totalEmployees > 0
+    ? financialData.incomeStatement.revenue / totalEmployees
+    : 0;
+
+  // 인당 영업이익 = 영업이익 / 총인원
+  const operatingProfitPerEmployee = totalEmployees > 0
+    ? financialData.incomeStatement.operatingProfit / totalEmployees
+    : 0;
+
+  // 인당 노동생산성 = 부가가치 / 총인원
+  const laborProductivityPerEmployee = totalEmployees > 0
+    ? financialData.incomeStatement.addedValue / totalEmployees
+    : 0;
+
+  // 인당 자본생산성 = 총자본 / 총인원
+  const capitalProductivityPerEmployee = totalEmployees > 0
+    ? totalAssets / totalEmployees
+    : 0;
+
+  return {
+    revenuePerEmployee: parseFloat(revenuePerEmployee.toFixed(2)),
+    operatingProfitPerEmployee: parseFloat(operatingProfitPerEmployee.toFixed(2)),
+    laborProductivityPerEmployee: parseFloat(laborProductivityPerEmployee.toFixed(2)),
+    capitalProductivityPerEmployee: parseFloat(capitalProductivityPerEmployee.toFixed(2))
+  };
+};
+
+/**
+ * HR 지표 계산
+ * @param {Object} financialData - 재무 데이터
+ * @returns {Object} HR 지표
+ */
+const calculateHRIndicators = (financialData) => {
+  // 총 인건비 계산
+  const totalLaborCost =
+    // 판관비 인건비
+    (financialData.incomeStatement.sellingExpenses.salary || 0) +
+    (financialData.incomeStatement.sellingExpenses.retirement || 0) +
+    (financialData.incomeStatement.sellingExpenses.welfare || 0) +
+    // 제조원가 인건비
+    (financialData.incomeStatement.manufacturingCosts.labor || 0) +
+    (financialData.incomeStatement.manufacturingCosts.retirement || 0) +
+    (financialData.incomeStatement.manufacturingCosts.welfare || 0);
+
+  // 노동소득분배율 = (총인건비 / 부가가치) × 100
+  const laborIncomeShareRate = financialData.incomeStatement.addedValue > 0
+    ? (totalLaborCost / financialData.incomeStatement.addedValue) * 100
+    : 0;
+
+  // HCROI (Human Capital Return On Investment) = (영업이익 + 총인건비) / 총인건비
+  const hcroi = totalLaborCost > 0
+    ? (financialData.incomeStatement.operatingProfit + totalLaborCost) / totalLaborCost
+    : 0;
+
+  return {
+    laborIncomeShareRate: parseFloat(laborIncomeShareRate.toFixed(2)),
+    hcroi: parseFloat(hcroi.toFixed(2))
+  };
+};
+
+/**
+ * 기타 인건비 관련 지표 계산
+ * @param {Object} financialData - 재무 데이터
+ * @returns {Object} 기타 인건비 지표
+ */
+const calculateOtherIndicators = (financialData) => {
+  // 총 인원 계산
+  const totalEmployees =
+    (financialData.employeeData.employees.regular || 0) +
+    (financialData.employeeData.employees.nonRegular || 0) +
+    (financialData.employeeData.nonEmployees.contracted || 0) +
+    (financialData.employeeData.nonEmployees.dispatched || 0);
+
+  // 총 인건비 계산
+  const totalLaborCost =
+    // 판관비 인건비
+    (financialData.incomeStatement.sellingExpenses.salary || 0) +
+    (financialData.incomeStatement.sellingExpenses.retirement || 0) +
+    (financialData.incomeStatement.sellingExpenses.welfare || 0) +
+    // 제조원가 인건비
+    (financialData.incomeStatement.manufacturingCosts.labor || 0) +
+    (financialData.incomeStatement.manufacturingCosts.retirement || 0) +
+    (financialData.incomeStatement.manufacturingCosts.welfare || 0);
+
+  // 인당 총 인건비 = 총인건비 / 총인원
+  const totalLaborCostPerEmployee = totalEmployees > 0
+    ? totalLaborCost / totalEmployees
+    : 0;
+
+  // 인당 인건비 (급여 + 노무비) = (급여 + 노무비) / 총인원
+  const laborCostPerEmployee = totalEmployees > 0
+    ? ((financialData.incomeStatement.sellingExpenses.salary || 0) + (financialData.incomeStatement.manufacturingCosts.labor || 0)) / totalEmployees
+    : 0;
+
+  // 인건비 대 매출액 비율 = 총인건비 / 매출액 × 100
+  const laborCostToRevenueRatio = financialData.incomeStatement.revenue > 0
+    ? (totalLaborCost / financialData.incomeStatement.revenue) * 100
+    : 0;
+
+  return {
+    totalLaborCostPerEmployee: parseFloat(totalLaborCostPerEmployee.toFixed(2)),
+    laborCostPerEmployee: parseFloat(laborCostPerEmployee.toFixed(2)),
+    laborCostToRevenueRatio: parseFloat(laborCostToRevenueRatio.toFixed(2))
+  };
+};
+
+/**
+ * 재무 데이터를 분석하여 모든 HR Index 계산
+ * @param {Object} currentYearData - 당해년도 재무 데이터
+ * @param {Object} previousYearData - 전년도 재무 데이터 (선택적)
+ * @returns {Object} 분석된 HR Index 지표
+ */
+const analyzeFinancialData = (currentYearData, previousYearData = null) => {
+  return {
+    growthIndicators: calculateGrowthIndicators(currentYearData, previousYearData),
+    profitabilityIndicators: calculateProfitabilityIndicators(currentYearData, previousYearData),
+    stabilityIndicators: calculateStabilityIndicators(currentYearData),
+    efficiencyIndicators: calculateEfficiencyIndicators(currentYearData),
+    hrIndicators: calculateHRIndicators(currentYearData),
+    otherIndicators: calculateOtherIndicators(currentYearData)
+  };
+};
+
+/**
+ * 기업 데이터와 산업 평균 데이터 비교 분석
+ * @param {Object} companyData - 기업 HR Index 데이터
+ * @param {Object} industryData - 산업 평균 HR Index 데이터
+ * @returns {Object} 비교 분석 결과
+ */
+const compareWithIndustry = (companyData, industryData) => {
+  // 비교 결과를 저장할 객체
+  const comparisonResults = {};
+  
+  // 성장성 지표 비교
+  comparisonResults.growthIndicators = {
+    revenueGrowthRate: {
+      difference: companyData.growthIndicators.revenueGrowthRate - industryData.growthIndicators.revenueGrowthRate,
+      evaluation: companyData.growthIndicators.revenueGrowthRate > industryData.growthIndicators.revenueGrowthRate ? '양호' : '개선 필요'
+    },
+    assetGrowthRate: {
+      difference: companyData.growthIndicators.assetGrowthRate - industryData.growthIndicators.assetGrowthRate,
+      evaluation: companyData.growthIndicators.assetGrowthRate > industryData.growthIndicators.assetGrowthRate ? '양호' : '개선 필요'
+    }
+  };
+  
+  // 수익성 지표 비교
+  comparisonResults.profitabilityIndicators = {
+    operatingProfitGrowthRate: {
+      difference: companyData.profitabilityIndicators.operatingProfitGrowthRate - industryData.profitabilityIndicators.operatingProfitGrowthRate,
+      evaluation: companyData.profitabilityIndicators.operatingProfitGrowthRate > industryData.profitabilityIndicators.operatingProfitGrowthRate ? '양호' : '개선 필요'
+    },
+    operatingProfitToRevenueRatio: {
+      difference: companyData.profitabilityIndicators.operatingProfitToRevenueRatio - industryData.profitabilityIndicators.operatingProfitToRevenueRatio,
+      evaluation: companyData.profitabilityIndicators.operatingProfitToRevenueRatio > industryData.profitabilityIndicators.operatingProfitToRevenueRatio ? '양호' : '개선 필요'
+    }
+  };
+  
+  // 안정성 지표 비교
+  comparisonResults.stabilityIndicators = {
+    debtRatio: {
+      difference: companyData.stabilityIndicators.debtRatio - industryData.stabilityIndicators.debtRatio,
+      evaluation: companyData.stabilityIndicators.debtRatio < industryData.stabilityIndicators.debtRatio ? '양호' : '개선 필요'  // 부채비율은 낮을수록 좋음
+    },
+    currentRatio: {
+      difference: companyData.stabilityIndicators.currentRatio - industryData.stabilityIndicators.currentRatio,
+      evaluation: companyData.stabilityIndicators.currentRatio > industryData.stabilityIndicators.currentRatio ? '양호' : '개선 필요'
+    }
+  };
+  
+  // 효율성 지표 비교
+  comparisonResults.efficiencyIndicators = {
+    revenuePerEmployee: {
+      difference: companyData.efficiencyIndicators.revenuePerEmployee - industryData.efficiencyIndicators.revenuePerEmployee,
+      evaluation: companyData.efficiencyIndicators.revenuePerEmployee > industryData.efficiencyIndicators.revenuePerEmployee ? '양호' : '개선 필요'
+    },
+    operatingProfitPerEmployee: {
+      difference: companyData.efficiencyIndicators.operatingProfitPerEmployee - industryData.efficiencyIndicators.operatingProfitPerEmployee,
+      evaluation: companyData.efficiencyIndicators.operatingProfitPerEmployee > industryData.efficiencyIndicators.operatingProfitPerEmployee ? '양호' : '개선 필요'
+    },
+    laborProductivityPerEmployee: {
+      difference: companyData.efficiencyIndicators.laborProductivityPerEmployee - industryData.efficiencyIndicators.laborProductivityPerEmployee,
+      evaluation: companyData.efficiencyIndicators.laborProductivityPerEmployee > industryData.efficiencyIndicators.laborProductivityPerEmployee ? '양호' : '개선 필요'
+    },
+    capitalProductivityPerEmployee: {
+      difference: companyData.efficiencyIndicators.capitalProductivityPerEmployee - industryData.efficiencyIndicators.capitalProductivityPerEmployee,
+      evaluation: companyData.efficiencyIndicators.capitalProductivityPerEmployee > industryData.efficiencyIndicators.capitalProductivityPerEmployee ? '양호' : '개선 필요'
+    }
+  };
+  
+  // HR 지표 비교
+  comparisonResults.hrIndicators = {
+    laborIncomeShareRate: {
+      difference: companyData.hrIndicators.laborIncomeShareRate - industryData.hrIndicators.laborIncomeShareRate,
+      evaluation: companyData.hrIndicators.laborIncomeShareRate < industryData.hrIndicators.laborIncomeShareRate ? '효율적' : '검토 필요'  // 노동소득분배율은 산업 평균보다 낮으면 효율적
+    },
+    hcroi: {
+      difference: companyData.hrIndicators.hcroi - industryData.hrIndicators.hcroi,
+      evaluation: companyData.hrIndicators.hcroi > industryData.hrIndicators.hcroi ? '효율적' : '검토 필요'
+    }
+  };
+
+  return {
+    industryAverage: industryData,
+    comparisonResults
+  };
+};
+
+/**
+ * 규칙 기반 HR 전략 추천 시스템
+ * @param {Object} financialAnalysis - 재무 분석 결과
+ * @param {Object} industryComparison - 산업 비교 결과
+ * @returns {Array} 추천 전략 목록
+ */
+const generateStrategicRecommendations = (financialAnalysis, industryComparison) => {
+  const recommendations = [];
+  
+  // HCROI 관련 전략 추천
+  if (financialAnalysis.hrIndicators.hcroi < industryComparison.industryAverage.hrIndicators.hcroi * 0.85) {
+    recommendations.push({
+      category: '인적자원 효율성',
+      issue: '인적자원 투자 대비 수익이 업계 평균보다 15% 이상 낮음',
+      recommendation: '인적자원 활용 효율화 전략 필요: 직무 재설계 및 교육 강화를 통한 생산성 향상',
+      priority: '높음',
+      impact: '인건비 대비 부가가치 창출 증대',
+      implementationPlan: '직무별 생산성 분석 → 핵심 역량 도출 → 교육 프로그램 설계'
+    });
+  }
+  
+  // 노동소득분배율 관련 전략 추천
+  if (financialAnalysis.hrIndicators.laborIncomeShareRate > 70) {
+    recommendations.push({
+      category: '인건비 최적화',
+      issue: '노동소득분배율이 70% 이상으로 높음',
+      recommendation: '인건비 구조 최적화: 성과 연동형 보상체계 강화 및 비효율적 직무 개선',
+      priority: '높음',
+      impact: '인건비 효율성 증대 및 재무 안정성 확보',
+      implementationPlan: '직무별 인건비 분석 → 성과 연동형 보상체계 설계 → 단계적 도입'
+    });
+  }
+  
+  // 인당 매출액 관련 전략 추천
+  if (financialAnalysis.efficiencyIndicators.revenuePerEmployee < industryComparison.industryAverage.efficiencyIndicators.revenuePerEmployee * 0.8) {
+    recommendations.push({
+      category: '생산성 향상',
+      issue: '인당 매출액이 업계 평균보다 20% 이상 낮음',
+      recommendation: '인당 생산성 향상 전략: 핵심 역량 중심의 인력 운영 및 업무 프로세스 개선',
+      priority: '중간',
+      impact: '매출 증대 및 경쟁력 강화',
+      implementationPlan: '업무 프로세스 분석 → 비효율 요소 개선 → 성과 관리 체계 강화'
+    });
+  }
+  
+  // 인건비 대 매출액 관련 전략 추천
+  if (financialAnalysis.otherIndicators.laborCostToRevenueRatio > industryComparison.industryAverage.otherIndicators.laborCostToRevenueRatio * 1.2) {
+    recommendations.push({
+      category: '인건비 관리',
+      issue: '인건비가 매출액에서 차지하는 비중이 업계 평균보다 20% 이상 높음',
+      recommendation: '인건비 대비 매출 효율성 개선: 시장 확대 및 매출 증대 전략과 함께 인력 구조 최적화',
+      priority: '중간',
+      impact: '수익성 개선 및 재무 안정성 강화',
+      implementationPlan: '영업 전략 재수립 → 핵심 인력 중심 조직 재편 → 성과 중심 평가체계 도입'
+    });
+  }
+  
+  // 기본 권장사항 (항상 포함)
+  recommendations.push({
+    category: '데이터 기반 HR',
+    issue: '체계적인 HR 데이터 관리 및 활용 필요',
+    recommendation: '정기적인 HR 데이터 수집 및 분석을 통한 지속적인 HR 전략 개선',
+    priority: '낮음',
+    impact: '장기적 HR 경쟁력 강화',
+    implementationPlan: 'HR 데이터 수집 체계 구축 → 정기 분석 리포트 작성 → 전략적 의사결정에 활용'
+  });
+  
+  return recommendations;
+};
+
+module.exports = {
+  analyzeFinancialData,
+  compareWithIndustry,
+  generateStrategicRecommendations
+};

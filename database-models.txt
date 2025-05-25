@@ -1,0 +1,387 @@
+// server/models/User.js
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+
+const UserSchema = new mongoose.Schema({
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    lowercase: true
+  },
+  password: {
+    type: String,
+    required: true,
+    minlength: 6
+  },
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  role: {
+    type: String,
+    enum: ['admin', 'user'],
+    default: 'user'
+  },
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company'
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+}, { timestamps: true });
+
+// 비밀번호 해싱 미들웨어
+UserSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
+  
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 비밀번호 검증 메소드
+UserSchema.methods.comparePassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
+};
+
+module.exports = mongoose.model('User', UserSchema);
+
+// server/models/Company.js
+const mongoose = require('mongoose');
+
+const CompanySchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  industry: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  size: {
+    type: String,
+    enum: ['대기업', '중견기업', '중소기업'],
+    required: true
+  },
+  businessNumber: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true
+  },
+  foundedYear: {
+    type: Number
+  },
+  employees: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+}, { timestamps: true });
+
+module.exports = mongoose.model('Company', CompanySchema);
+
+// server/models/FinancialData.js
+const mongoose = require('mongoose');
+
+const FinancialDataSchema = new mongoose.Schema({
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    required: true
+  },
+  year: {
+    type: Number,
+    required: true
+  },
+  // 재무제표 데이터
+  financialStatement: {
+    assets: {
+      current: { type: Number, default: 0 },  // 유동자산
+      nonCurrent: { type: Number, default: 0 }  // 비유동자산
+    },
+    liabilities: {
+      current: { type: Number, default: 0 },  // 유동부채
+      nonCurrent: { type: Number, default: 0 }  // 비유동부채
+    },
+    equity: { type: Number, default: 0 }  // 자본총계
+  },
+  // 손익계산서 데이터
+  incomeStatement: {
+    revenue: { type: Number, default: 0 },  // 매출액
+    costOfSales: { type: Number, default: 0 },  // 매출원가
+    grossProfit: { type: Number, default: 0 },  // 매출총이익
+    operatingProfit: { type: Number, default: 0 },  // 영업이익
+    sellingExpenses: {
+      salary: { type: Number, default: 0 },  // 급여(판관비)
+      retirement: { type: Number, default: 0 },  // 퇴직급여(판관비)
+      welfare: { type: Number, default: 0 },  // 복리후생비(판관비)
+      rent: { type: Number, default: 0 },  // 지급임차료(판관비)
+      tax: { type: Number, default: 0 },  // 세금과공과(판관비)
+      depreciation: { type: Number, default: 0 },  // 감가상각비(판관비)
+      total: { type: Number, default: 0 }  // 판매비와 관리비 총합
+    },
+    manufacturingCosts: {
+      labor: { type: Number, default: 0 },  // 노무비
+      retirement: { type: Number, default: 0 },  // 퇴직급여(제조원가)
+      welfare: { type: Number, default: 0 },  // 복리후생비(제조원가)
+      rent: { type: Number, default: 0 },  // 지급임차료(제조원가)
+      tax: { type: Number, default: 0 },  // 세금과공과(제조원가)
+      depreciation: { type: Number, default: 0 },  // 감가상각비(제조원가)
+      total: { type: Number, default: 0 }  // 제조원가명세서 총합
+    },
+    financialExpenses: {
+      interestIncome: { type: Number, default: 0 },  // 이자수익
+      interestExpense: { type: Number, default: 0 },  // 이자비용
+      total: { type: Number, default: 0 }  // 금융비용 총합
+    },
+    addedValue: { type: Number, default: 0 }  // 부가가치
+  },
+  // 인원현황 데이터
+  employeeData: {
+    employees: {
+      regular: { type: Number, default: 0 },  // 정규직 근로자
+      nonRegular: { type: Number, default: 0 }  // 비정규직 근로자(계약/단시간)
+    },
+    nonEmployees: {
+      contracted: { type: Number, default: 0 },  // 도급 근로자
+      dispatched: { type: Number, default: 0 }  // 파견 근로자
+    }
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+}, { timestamps: true });
+
+module.exports = mongoose.model('FinancialData', FinancialDataSchema);
+
+// server/models/OrganizationData.js
+const mongoose = require('mongoose');
+
+const OrganizationSchema = new mongoose.Schema({
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    required: true
+  },
+  year: {
+    type: Number,
+    required: true
+  },
+  teams: [{
+    name: { type: String, required: true },  // 팀명(조직명)
+    type: { 
+      type: String, 
+      enum: ['본원적 활동', '지원활동'], 
+      required: true 
+    },  // 본원적 활동 / 지원활동 선택
+    description: { type: String },  // 설명
+    averageEmployees: { type: Number, default: 0 },  // 평균 인원 (명, 연평균)
+    averageWorkingHours: { type: Number, default: 0 },  // 평균 근로시간 (시간/주)
+    averageSalary: { type: Number, default: 0 },  // 평균 임금 (만원/월, 연평균)
+    averageTenure: { type: Number, default: 0 }  // 평균 재직연수 (년)
+  }],
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+}, { timestamps: true });
+
+module.exports = mongoose.model('OrganizationData', OrganizationSchema);
+
+// server/models/JobData.js
+const mongoose = require('mongoose');
+
+const JobDataSchema = new mongoose.Schema({
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    required: true
+  },
+  year: {
+    type: Number,
+    required: true
+  },
+  jobs: [{
+    team: { type: String, required: true },  // 팀명(조직명)
+    mainRole: { type: String, required: true },  // 주요 역할
+    ncsClassification: { type: String },  // 자동 직무 분류 (NCS 기반)
+    keyActivities: [{ type: String }],  // 주요 세부 활동 (능력단위, 최대 3개)
+    internalCapacity: { type: Number, default: 0 },  // 내부 역량 보유율 (%)
+    careerLevel: { type: Number, default: 0 },  // 경력 수준 (%)
+    projectExperience: { type: Number, default: 0 },  // 프로젝트 경험 (%)
+    internalPerformanceRate: { type: Number, default: 0 },  // 내부 수행율 (%)
+    canPerform: { type: Boolean, default: false }  // 기능 수행 가능 여부 (Yes/No)
+  }],
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+}, { timestamps: true });
+
+module.exports = mongoose.model('JobData', JobDataSchema);
+
+// server/models/SurveyData.js
+const mongoose = require('mongoose');
+
+const SurveyDataSchema = new mongoose.Schema({
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    required: true
+  },
+  year: {
+    type: Number,
+    required: true
+  },
+  // 갈등 지수 관련 설문
+  conflictIndex: {
+    questions: [{
+      question: { type: String, required: true },  // 설문 문항
+      average: { type: Number, default: 0 },  // 평균 점수
+      responses: [{
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        score: { type: Number, min: 1, max: 5 }  // 1-5점 척도 응답
+      }]
+    }],
+    averageScore: { type: Number, default: 0 }  // 갈등 지수 평균
+  },
+  // 커뮤니케이션 지수 관련 설문
+  communicationIndex: {
+    questions: [{
+      question: { type: String, required: true },  // 설문 문항
+      average: { type: Number, default: 0 },  // 평균 점수
+      responses: [{
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        score: { type: Number, min: 1, max: 5 }  // 1-5점 척도 응답
+      }]
+    }],
+    averageScore: { type: Number, default: 0 }  // 커뮤니케이션 지수 평균
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+}, { timestamps: true });
+
+module.exports = mongoose.model('SurveyData', SurveyDataSchema);
+
+// server/models/AnalysisResult.js
+const mongoose = require('mongoose');
+
+const AnalysisResultSchema = new mongoose.Schema({
+  company: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    required: true
+  },
+  year: {
+    type: Number,
+    required: true
+  },
+  // 경영진단 결과
+  financialAnalysis: {
+    // 성장성 지표
+    growthIndicators: {
+      revenueGrowthRate: { type: Number },  // 매출액 증가율
+      assetGrowthRate: { type: Number }  // 총자산 증가율
+    },
+    // 수익성 지표
+    profitabilityIndicators: {
+      operatingProfitGrowthRate: { type: Number },  // 영업이익 증가율
+      operatingProfitToRevenueRatio: { type: Number }  // 영업이익 대 매출액 비율
+    },
+    // 안정성 지표
+    stabilityIndicators: {
+      debtRatio: { type: Number },  // 부채비율
+      currentRatio: { type: Number }  // 유동비율
+    },
+    // 효율성 지표
+    efficiencyIndicators: {
+      revenuePerEmployee: { type: Number },  // 인당 매출액
+      operatingProfitPerEmployee: { type: Number },  // 인당 영업이익
+      laborProductivityPerEmployee: { type: Number },  // 인당 노동생산성
+      capitalProductivityPerEmployee: { type: Number }  // 인당 자본생산성
+    },
+    // HR 지표
+    hrIndicators: {
+      laborIncomeShareRate: { type: Number },  // 노동소득분배율
+      hcroi: { type: Number }  // HCROI
+    },
+    // 기타 지표
+    otherIndicators: {
+      totalLaborCostPerEmployee: { type: Number },  // 인당 총 인건비
+      laborCostPerEmployee: { type: Number },  // 인당 인건비
+      laborCostToRevenueRatio: { type: Number }  // 인건비 대 매출액 비율
+    }
+  },
+  // 산업과의 비교
+  industryComparison: {
+    industryAverage: {
+      // 산업 평균 지표를 포함 (경영진단과 동일 구조)
+    },
+    comparisonResults: {
+      // 기업 데이터와 산업 평균의 차이 및 평가
+    }
+  },
+  // HR 전략 및 추천
+  strategicRecommendations: [{
+    category: { type: String },  // 추천 카테고리
+    issue: { type: String },  // 핵심 이슈
+    recommendation: { type: String },  // 추천 전략
+    priority: { type: String, enum: ['낮음', '중간', '높음'] },  // 우선순위
+    impact: { type: String },  // 기대 효과
+    implementationPlan: { type: String }  // 실행 계획
+  }],
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+}, { timestamps: true });
+
+module.exports = mongoose.model('AnalysisResult', AnalysisResultSchema);

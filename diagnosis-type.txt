@@ -1,0 +1,98 @@
+// client/src/pages/DiagnosisType/DiagnosisTypePage.js
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import axios from 'axios';
+
+// 공통 컴포넌트
+import Card from '../../components/common/Card';
+import Button from '../../components/common/Button';
+import Spinner from '../../components/common/Spinner';
+
+const DiagnosisTypePage = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [companyData, setCompanyData] = useState(null);
+  const [diagnosisStatus, setDiagnosisStatus] = useState({
+    financial: false,
+    organization: false,
+    job: false,
+    survey: false,
+    comprehensive: false
+  });
+  
+  // 기업 정보 및 진단 상태 조회
+  useEffect(() => {
+    const fetchCompanyData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          navigate('/login');
+          return;
+        }
+        
+        // 기업 정보 조회
+        const companyResponse = await axios.get('/api/company', {
+          headers: { 'x-auth-token': token }
+        });
+        
+        if (companyResponse.data) {
+          setCompanyData(companyResponse.data);
+          
+          // 각 진단 영역의 상태 조회
+          const currentYear = new Date().getFullYear().toString();
+          
+          // 재무 진단 상태 조회
+          try {
+            const financialResponse = await axios.get(`/api/analysis/${currentYear}`, {
+              headers: { 'x-auth-token': token }
+            });
+            
+            if (financialResponse.data) {
+              setDiagnosisStatus(prev => ({ ...prev, financial: true }));
+            }
+          } catch (error) {
+            // 재무 진단 데이터가 없음
+          }
+          
+          // 조직 진단 상태 조회
+          try {
+            const organizationResponse = await axios.get(`/api/organization/${currentYear}`, {
+              headers: { 'x-auth-token': token }
+            });
+            
+            if (organizationResponse.data) {
+              setDiagnosisStatus(prev => ({ ...prev, organization: true }));
+            }
+          } catch (error) {
+            // 조직 진단 데이터가 없음
+          }
+          
+          // 직무 진단 상태 조회
+          try {
+            const jobResponse = await axios.get(`/api/job/${currentYear}`, {
+              headers: { 'x-auth-token': token }
+            });
+            
+            if (jobResponse.data) {
+              setDiagnosisStatus(prev => ({ ...prev, job: true }));
+            }
+          } catch (error) {
+            // 직무 진단 데이터가 없음
+          }
+          
+          // 설문 진단 상태 조회
+          try {
+            const surveyResponse = await axios.get(`/api/survey/${currentYear}`, {
+              headers: { 'x-auth-token': token }
+            });
+            
+            if (surveyResponse.data) {
+              setDiagnosisStatus(prev => ({ ...prev, survey: true }));
+            }
+          } catch (error) {
+            // 설문 진단 데이터가 없음
+          }
+          
+          // 종합 진단 상태 조회
+          try

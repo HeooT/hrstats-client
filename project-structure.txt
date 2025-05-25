@@ -1,0 +1,51 @@
+# HR Stats MVP 프로젝트 구조
+
+```
+hr-stats/
+├── client/                     # 프론트엔드 (React)
+│   ├── public/
+│   ├── src/
+│   │   ├── assets/            # 이미지, 아이콘 등
+│   │   ├── components/        # 재사용 가능한 컴포넌트
+│   │   │   ├── common/        # 공통 컴포넌트 (버튼, 입력 필드 등)
+│   │   │   ├── dashboard/     # 대시보드 관련 컴포넌트
+│   │   │   ├── forms/         # 데이터 입력 폼 컴포넌트
+│   │   │   └── charts/        # 차트 및 시각화 컴포넌트
+│   │   ├── pages/             # 페이지 컴포넌트
+│   │   │   ├── Auth/          # 로그인, 회원가입
+│   │   │   ├── CompanyInfo/   # 기업정보 입력
+│   │   │   ├── Financial/     # 경영진단 데이터 입력
+│   │   │   ├── Organization/  # 조직진단 데이터 입력
+│   │   │   ├── JobAnalysis/   # 직무진단 데이터 입력
+│   │   │   ├── Survey/        # 설문진단 데이터 입력
+│   │   │   ├── Dashboard/     # 데이터 분석 결과 대시보드
+│   │   │   └── Reports/       # 보고서 생성 및 관리
+│   │   ├── contexts/          # React Context API
+│   │   ├── hooks/             # 커스텀 훅
+│   │   ├── services/          # API 호출 함수
+│   │   ├── utils/             # 유틸리티 함수
+│   │   ├── App.js             # 앱 메인 컴포넌트
+│   │   └── index.js           # 엔트리 포인트
+│   ├── package.json
+│   └── README.md
+│
+├── server/                     # 백엔드 (Node.js + Express)
+│   ├── config/                 # 설정 파일
+│   ├── controllers/            # 요청 핸들러
+│   ├── middleware/             # 미들웨어
+│   ├── models/                 # 데이터베이스 모델
+│   ├── routes/                 # API 라우트
+│   ├── services/               # 비즈니스 로직
+│   │   ├── analysis/          # 데이터 분석 로직
+│   │   ├── reports/           # 보고서 생성 로직
+│   │   └── insights/          # 인사이트 및 추천 생성 로직
+│   ├── utils/                  # 유틸리티 함수
+│   ├── app.js                  # Express 앱 설정
+│   ├── server.js               # 서버 시작점
+│   ├── package.json
+│   └── README.md
+│
+├── .gitignore
+├── README.md
+└── package.json                # 루트 레벨 package.json (개발 스크립트 등)
+```

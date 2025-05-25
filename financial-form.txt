@@ -1,0 +1,872 @@
+// client/src/pages/Financial/FinancialStatementForm.js
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
+import { toast } from 'react-toastify';
+import axios from 'axios';
+
+// 공통 컴포넌트
+import Button from '../../components/common/Button';
+import Input from '../../components/common/Input';
+import Card from '../../components/common/Card';
+import Tabs from '../../components/common/Tabs';
+import Select from '../../components/common/Select';
+
+// 숫자 포맷팅 유틸리티
+import { formatNumber, unformatNumber } from '../../utils/numberFormat';
+
+const FinancialStatementForm = () => {
+  const navigate = useNavigate();
+  const { year } = useParams();
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('balanceSheet');
+  const [availableYears, setAvailableYears] = useState([]);
+  
+  // 연도 옵션 생성 (현재 연도로부터 5년 전까지)
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 5 }, (_, i) => ({
+    value: (currentYear - 4 + i).toString(),
+    label: (currentYear - 4 + i).toString()
+  }));
+  
+  // 폼 초기화
+  const initialValues = {
+    // 재무제표 데이터
+    assets: {
+      current: '',  // 유동자산
+      nonCurrent: ''  // 비유동자산
+    },
+    liabilities: {
+      current: '',  // 유동부채
+      nonCurrent: ''  // 비유동부채
+    },
+    equity: '',  // 자본총계
+    
+    // 손익계산서 데이터
+    revenue: '',  // 매출액
+    costOfSales: '',  // 매출원가
+    grossProfit: '0',  // 매출총이익 (자동계산)
+    operatingProfit: '',  // 영업이익
+    
+    // 판매비와 관리비
+    selling: {
+      salary: '',  // 급여(판관비)
+      retirement: '',  // 퇴직급여(판관비)
+      welfare: '',  // 복리후생비(판관비)
+      rent: '',  // 지급임차료(판관비)
+      tax: '',  // 세금과공과(판관비)
+      depreciation: '',  // 감가상각비(판관비)
+      total: '0'  // 판매비와 관리비 총합 (자동계산)
+    },
+    
+    // 제조원가명세서
+    manufacturing: {
+      labor: '',  // 노무비
+      retirement: '',  // 퇴직급여(제조원가)
+      welfare: '',  // 복리후생비(제조원가)
+      rent: '',  // 지급임차료(제조원가)
+      tax: '',  // 세금과공과(제조원가)
+      depreciation: '',  // 감가상각비(제조원가)
+      total: '0'  // 제조원가명세서 총합 (자동계산)
+    },
+    
+    // 금융비용
+    financial: {
+      interestIncome: '',  // 이자수익
+      interestExpense: '',  // 이자비용
+      total: '0'  // 금융비용 총합 (자동계산)
+    },
+    
+    addedValue: '0',  // 부가가치 (자동계산)
+    
+    // 인원현황 데이터
+    employees: {
+      regular: '',  // 정규직 근로자
+      nonRegular: ''  // 비정규직 근로자(계약/단시간)
+    },
+    nonEmployees: {
+      contracted: '',  // 도급 근로자
+      dispatched: ''  // 파견 근로자
+    },
+    totalEmployees: '0'  // 총 인원 (자동계산)
+  };
+  
+  // 해당 연도의 재무 데이터 불러오기
+  useEffect(() => {
+    const fetchFinancialData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          navigate('/login');
+          return;
+        }
+        
+        // 저장된 모든 연도의 재무 데이터 확인
+        const allDataResponse = await axios.get('/api/financial', {
+          headers: { 'x-auth-token': token }
+        });
+        
+        if (allDataResponse.data) {
+          const years = allDataResponse.data.map(item => item.year.toString());
+          setAvailableYears(years);
+        }
+        
+        // 선택한 연도의 데이터가 있으면 불러오기
+        if (year) {
+          const response = await axios.get(`/api/financial/${year}`, {
+            headers: { 'x-auth-token': token }
+          });
+          
+          if (response.data) {
+            const data = response.data;
+            
+            // 데이터 포맷팅하여 폼에 설정
+            formik.setValues({
+              assets: {
+                current: formatNumber(data.financialStatement.assets.current || 0),
+                nonCurrent: formatNumber(data.financialStatement.assets.nonCurrent || 0)
+              },
+              liabilities: {
+                current: formatNumber(data.financialStatement.liabilities.current || 0),
+                nonCurrent: formatNumber(data.financialStatement.liabilities.nonCurrent || 0)
+              },
+              equity: formatNumber(data.financialStatement.equity || 0),
+              
+              revenue: formatNumber(data.incomeStatement.revenue || 0),
+              costOfSales: formatNumber(data.incomeStatement.costOfSales || 0),
+              grossProfit: formatNumber(data.incomeStatement.grossProfit || 0),
+              operatingProfit: formatNumber(data.incomeStatement.operatingProfit || 0),
+              
+              selling: {
+                salary: formatNumber(data.incomeStatement.sellingExpenses.salary || 0),
+                retirement: formatNumber(data.incomeStatement.sellingExpenses.retirement || 0),
+                welfare: formatNumber(data.incomeStatement.sellingExpenses.welfare || 0),
+                rent: formatNumber(data.incomeStatement.sellingExpenses.rent || 0),
+                tax: formatNumber(data.incomeStatement.sellingExpenses.tax || 0),
+                depreciation: formatNumber(data.incomeStatement.sellingExpenses.depreciation || 0),
+                total: formatNumber(data.incomeStatement.sellingExpenses.total || 0)
+              },
+              
+              manufacturing: {
+                labor: formatNumber(data.incomeStatement.manufacturingCosts.labor || 0),
+                retirement: formatNumber(data.incomeStatement.manufacturingCosts.retirement || 0),
+                welfare: formatNumber(data.incomeStatement.manufacturingCosts.welfare || 0),
+                rent: formatNumber(data.incomeStatement.manufacturingCosts.rent || 0),
+                tax: formatNumber(data.incomeStatement.manufacturingCosts.tax || 0),
+                depreciation: formatNumber(data.incomeStatement.manufacturingCosts.depreciation || 0),
+                total: formatNumber(data.incomeStatement.manufacturingCosts.total || 0)
+              },
+              
+              financial: {
+                interestIncome: formatNumber(data.incomeStatement.financialExpenses.interestIncome || 0),
+                interestExpense: formatNumber(data.incomeStatement.financialExpenses.interestExpense || 0),
+                total: formatNumber(data.incomeStatement.financialExpenses.total || 0)
+              },
+              
+              addedValue: formatNumber(data.incomeStatement.addedValue || 0),
+              
+              employees: {
+                regular: data.employeeData.employees.regular || '',
+                nonRegular: data.employeeData.employees.nonRegular || ''
+              },
+              nonEmployees: {
+                contracted: data.employeeData.nonEmployees.contracted || '',
+                dispatched: data.employeeData.nonEmployees.dispatched || ''
+              },
+              totalEmployees: (data.employeeData.employees.regular || 0) + 
+                            (data.employeeData.employees.nonRegular || 0) + 
+                            (data.employeeData.nonEmployees.contracted || 0) + 
+                            (data.employeeData.nonEmployees.dispatched || 0)
+            });
+          }
+        }
+      } catch (error) {
+        console.error('재무 데이터 불러오기 실패:', error);
+        toast.error('재무 데이터를 불러올 수 없습니다');
+      }
+    };
+    
+    fetchFinancialData();
+  }, [year]);
+  
+  // Formik 설정
+  const formik = useFormik({
+    initialValues,
+    validationSchema: Yup.object({
+      // 재무제표 유효성 검사
+      assets: Yup.object({
+        current: Yup.string().required('유동자산을 입력해주세요'),
+        nonCurrent: Yup.string().required('비유동자산을 입력해주세요')
+      }),
+      liabilities: Yup.object({
+        current: Yup.string().required('유동부채를 입력해주세요'),
+        nonCurrent: Yup.string().required('비유동부채를 입력해주세요')
+      }),
+      equity: Yup.string().required('자본총계를 입력해주세요'),
+      
+      // 손익계산서 유효성 검사
+      revenue: Yup.string().required('매출액을 입력해주세요'),
+      costOfSales: Yup.string().required('매출원가를 입력해주세요'),
+      operatingProfit: Yup.string().required('영업이익을 입력해주세요'),
+      
+      // 인원현황 유효성 검사
+      employees: Yup.object({
+        regular: Yup.number().required('정규직 근로자 수를 입력해주세요').min(0, '0 이상의 값을 입력해주세요'),
+        nonRegular: Yup.number().required('비정규직 근로자 수를 입력해주세요').min(0, '0 이상의 값을 입력해주세요')
+      }),
+      nonEmployees: Yup.object({
+        contracted: Yup.number().required('도급 근로자 수를 입력해주세요').min(0, '0 이상의 값을 입력해주세요'),
+        dispatched: Yup.number().required('파견 근로자 수를 입력해주세요').min(0, '0 이상의 값을 입력해주세요')
+      })
+    }),
+    onSubmit: async (values) => {
+      setLoading(true);
+      
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          navigate('/login');
+          return;
+        }
+        
+        // 자동 계산된 값들을 포함하여 전송할 데이터 준비
+        const formattedData = {
+          year: parseInt(year),
+          financialStatement: {
+            assets: {
+              current: unformatNumber(values.assets.current),
+              nonCurrent: unformatNumber(values.assets.nonCurrent)
+            },
+            liabilities: {
+              current: unformatNumber(values.liabilities.current),
+              nonCurrent: unformatNumber(values.liabilities.nonCurrent)
+            },
+            equity: unformatNumber(values.equity)
+          },
+          incomeStatement: {
+            revenue: unformatNumber(values.revenue),
+            costOfSales: unformatNumber(values.costOfSales),
+            grossProfit: unformatNumber(values.grossProfit),
+            operatingProfit: unformatNumber(values.operatingProfit),
+            sellingExpenses: {
+              salary: unformatNumber(values.selling.salary),
+              retirement: unformatNumber(values.selling.retirement),
+              welfare: unformatNumber(values.selling.welfare),
+              rent: unformatNumber(values.selling.rent),
+              tax: unformatNumber(values.selling.tax),
+              depreciation: unformatNumber(values.selling.depreciation),
+              total: unformatNumber(values.selling.total)
+            },
+            manufacturingCosts: {
+              labor: unformatNumber(values.manufacturing.labor),
+              retirement: unformatNumber(values.manufacturing.retirement),
+              welfare: unformatNumber(values.manufacturing.welfare),
+              rent: unformatNumber(values.manufacturing.rent),
+              tax: unformatNumber(values.manufacturing.tax),
+              depreciation: unformatNumber(values.manufacturing.depreciation),
+              total: unformatNumber(values.manufacturing.total)
+            },
+            financialExpenses: {
+              interestIncome: unformatNumber(values.financial.interestIncome),
+              interestExpense: unformatNumber(values.financial.interestExpense),
+              total: unformatNumber(values.financial.total)
+            },
+            addedValue: unformatNumber(values.addedValue)
+          },
+          employeeData: {
+            employees: {
+              regular: parseInt(values.employees.regular),
+              nonRegular: parseInt(values.employees.nonRegular)
+            },
+            nonEmployees: {
+              contracted: parseInt(values.nonEmployees.contracted),
+              dispatched: parseInt(values.nonEmployees.dispatched)
+            }
+          }
+        };
+        
+        // 데이터 저장 API 호출
+        const isUpdate = availableYears.includes(year);
+        const method = isUpdate ? 'put' : 'post';
+        const endpoint = isUpdate ? `/api/financial/${year}` : '/api/financial';
+        
+        await axios[method](endpoint, formattedData, {
+          headers: { 'x-auth-token': token }
+        });
+        
+        toast.success(isUpdate ? '재무 데이터가 수정되었습니다' : '재무 데이터가 등록되었습니다');
+        
+        // HR Index 분석 페이지로 이동
+        navigate(`/financial/analysis/${year}`);
+      } catch (error) {
+        console.error('재무 데이터 저장 실패:', error);
+        toast.error(error.response?.data?.msg || '재무 데이터 저장에 실패했습니다');
+      } finally {
+        setLoading(false);
+      }
+    }
+  });
+  
+  // 연도 선택 핸들러
+  const handleYearChange = (e) => {
+    navigate(`/financial/${e.target.value}`);
+  };
+  
+  // 천 단위 콤마 자동 적용 핸들러
+  const handleNumberChange = (e) => {
+    const { name, value } = e.target;
+    
+    // 숫자와 쉼표만 허용하는 정규식
+    const regex = /^[0-9,]*$/;
+    
+    if (regex.test(value) || value === '') {
+      // 쉼표를 제거하고 숫자로 변환
+      const numericValue = value.replace(/,/g, '');
+      
+      // 천 단위 콤마 추가
+      const formattedValue = numericValue === '' ? '' : formatNumber(numericValue);
+      
+      // 중첩된 객체 속성 처리 (예: selling.salary)
+      if (name.includes('.')) {
+        const [parentKey, childKey] = name.split('.');
+        formik.setFieldValue(`${parentKey}.${childKey}`, formattedValue);
+      } else {
+        formik.setFieldValue(name, formattedValue);
+      }
+      
+      // 자동 계산이 필요한 필드 업데이트
+      updateCalculatedFields();
+    }
+  };
+  
+  // 자동 계산 필드 업데이트
+  const updateCalculatedFields = () => {
+    // 매출총이익 = 매출액 - 매출원가
+    const revenue = unformatNumber(formik.values.revenue) || 0;
+    const costOfSales = unformatNumber(formik.values.costOfSales) || 0;
+    const grossProfit = revenue - costOfSales;
+    formik.setFieldValue('grossProfit', formatNumber(grossProfit));
+    
+    // 판매비와 관리비 총합
+    const sellingTotal = 
+      (unformatNumber(formik.values.selling.salary) || 0) +
+      (unformatNumber(formik.values.selling.retirement) || 0) +
+      (unformatNumber(formik.values.selling.welfare) || 0) +
+      (unformatNumber(formik.values.selling.rent) || 0) +
+      (unformatNumber(formik.values.selling.tax) || 0) +
+      (unformatNumber(formik.values.selling.depreciation) || 0);
+    formik.setFieldValue('selling.total', formatNumber(sellingTotal));
+    
+    // 제조원가명세서 총합
+    const manufacturingTotal = 
+      (unformatNumber(formik.values.manufacturing.labor) || 0) +
+      (unformatNumber(formik.values.manufacturing.retirement) || 0) +
+      (unformatNumber(formik.values.manufacturing.welfare) || 0) +
+      (unformatNumber(formik.values.manufacturing.rent) || 0) +
+      (unformatNumber(formik.values.manufacturing.tax) || 0) +
+      (unformatNumber(formik.values.manufacturing.depreciation) || 0);
+    formik.setFieldValue('manufacturing.total', formatNumber(manufacturingTotal));
+    
+    // 금융비용 총합
+    const financialTotal = 
+      (unformatNumber(formik.values.financial.interestExpense) || 0) -
+      (unformatNumber(formik.values.financial.interestIncome) || 0);
+    formik.setFieldValue('financial.total', formatNumber(financialTotal));
+    
+    // 부가가치 = 영업이익 + 판매비와 관리비 총합 + 제조원가명세서 총합 + 금융비용 총합
+    const operatingProfit = unformatNumber(formik.values.operatingProfit) || 0;
+    const addedValue = operatingProfit + sellingTotal + manufacturingTotal + financialTotal;
+    formik.setFieldValue('addedValue', formatNumber(addedValue));
+    
+    // 총 인원 = 정규직 + 비정규직 + 도급 + 파견
+    const totalEmployees = 
+      (parseInt(formik.values.employees.regular) || 0) +
+      (parseInt(formik.values.employees.nonRegular) || 0) +
+      (parseInt(formik.values.nonEmployees.contracted) || 0) +
+      (parseInt(formik.values.nonEmployees.dispatched) || 0);
+    formik.setFieldValue('totalEmployees', totalEmployees);
+  };
+  
+  // 인원 수 변경 핸들러
+  const handleEmployeeChange = (e) => {
+    const { name, value } = e.target;
+    
+    // 숫자만 허용하는 정규식
+    const regex = /^[0-9]*$/;
+    
+    if (regex.test(value) || value === '') {
+      // 중첩된 객체 속성 처리 (예: employees.regular)
+      if (name.includes('.')) {
+        const [parentKey, childKey] = name.split('.');
+        formik.setFieldValue(`${parentKey}.${childKey}`, value);
+      } else {
+        formik.setFieldValue(name, value);
+      }
+      
+      // 총 인원 업데이트
+      setTimeout(() => updateCalculatedFields(), 0);
+    }
+  };
+  
+  // 탭 옵션
+  const tabOptions = [
+    { id: 'balanceSheet', label: '재무제표' },
+    { id: 'incomeStatement', label: '손익계산서' },
+    { id: 'employeeData', label: '인원현황' }
+  ];
+  
+  // 파일 업로드 처리
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // 지원하는 파일 형식인지 확인 (Excel)
+    const fileExtension = file.name.split('.').pop().toLowerCase();
+    if (!['xlsx', 'xls', 'csv'].includes(fileExtension)) {
+      toast.error('지원하지 않는 파일 형식입니다. Excel 또는 CSV 파일을 업로드해주세요.');
+      return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('year', year);
+    
+    setLoading(true);
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+      
+      const response = await axios.post('/api/financial/upload', formData, {
+        headers: {
+          'x-auth-token': token,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      if (response.data) {
+        toast.success('파일 업로드 및 데이터 추출이 완료되었습니다.');
+        
+        // 페이지 새로고침
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('파일 업로드 실패:', error);
+      toast.error(error.response?.data?.msg || '파일 업로드에 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  return (
+    <div className="space-y-6">
+      <Card title="재무제표 및 손익계산서 입력">
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center space-x-4">
+            <Select
+              id="yearSelect"
+              label="연도 선택"
+              options={yearOptions}
+              value={year}
+              onChange={handleYearChange}
+              className="w-32"
+            />
+            {availableYears.includes(year) && (
+              <span className="text-green-600 text-sm">
+                저장된 데이터가 있습니다
+              </span>
+            )}
+          </div>
+          
+          <div className="flex items-center space-x-4">
+            <label htmlFor="fileUpload" className="cursor-pointer">
+              <div className="px-4 py-2 bg-blue-50 text-blue-600 rounded-md border border-blue-200 hover:bg-blue-100 flex items-center">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 mr-2"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3-3m0 0l3 3m-3-3v12"
+                  />
+                </svg>
+                Excel 파일 업로드
+              </div>
+              <input
+                id="fileUpload"
+                type="file"
+                accept=".xlsx, .xls, .csv"
+                className="hidden"
+                onChange={handleFileUpload}
+                disabled={loading}
+              />
+            </label>
+          </div>
+        </div>
+        
+        <Tabs
+          options={tabOptions}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+        />
+        
+        <form onSubmit={formik.handleSubmit} className="mt-6">
+          {activeTab === 'balanceSheet' && (
+            <div className="space-y-6">
+              <h3 className="text-lg font-medium text-gray-900">재무제표 (단위: 원)</h3>
+              
+              <div className="border rounded-lg overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        항목
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
+                        금액 (원)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    <tr>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        유동자산
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <Input
+                          id="assets.current"
+                          name="assets.current"
+                          type="text"
+                          placeholder="0"
+                          value={formik.values.assets.current}
+                          onChange={handleNumberChange}
+                          onBlur={formik.handleBlur}
+                          error={formik.touched.assets?.current && formik.errors.assets?.current}
+                          className="text-right"
+                        />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        비유동자산
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <Input
+                          id="assets.nonCurrent"
+                          name="assets.nonCurrent"
+                          type="text"
+                          placeholder="0"
+                          value={formik.values.assets.nonCurrent}
+                          onChange={handleNumberChange}
+                          onBlur={formik.handleBlur}
+                          error={formik.touched.assets?.nonCurrent && formik.errors.assets?.nonCurrent}
+                          className="text-right"
+                        />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        유동부채
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <Input
+                          id="liabilities.current"
+                          name="liabilities.current"
+                          type="text"
+                          placeholder="0"
+                          value={formik.values.liabilities.current}
+                          onChange={handleNumberChange}
+                          onBlur={formik.handleBlur}
+                          error={formik.touched.liabilities?.current && formik.errors.liabilities?.current}
+                          className="text-right"
+                        />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        비유동부채
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <Input
+                          id="liabilities.nonCurrent"
+                          name="liabilities.nonCurrent"
+                          type="text"
+                          placeholder="0"
+                          value={formik.values.liabilities.nonCurrent}
+                          onChange={handleNumberChange}
+                          onBlur={formik.handleBlur}
+                          error={formik.touched.liabilities?.nonCurrent && formik.errors.liabilities?.nonCurrent}
+                          className="text-right"
+                        />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        자본총계
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <Input
+                          id="equity"
+                          name="equity"
+                          type="text"
+                          placeholder="0"
+                          value={formik.values.equity}
+                          onChange={handleNumberChange}
+                          onBlur={formik.handleBlur}
+                          error={formik.touched.equity && formik.errors.equity}
+                          className="text-right"
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          
+          {activeTab === 'incomeStatement' && (
+            <div className="space-y-6">
+              <h3 className="text-lg font-medium text-gray-900">손익계산서 (단위: 원)</h3>
+              
+              <div className="border rounded-lg overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        항목
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
+                        금액 (원)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    <tr>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">// client/src/pages/Financial/FinancialStatementForm.js
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
+import { toast } from 'react-toastify';
+import axios from 'axios';
+
+// 공통 컴포넌트
+import Button from '../../components/common/Button';
+import Input from '../../components/common/Input';
+import Card from '../../components/common/Card';
+import Tabs from '../../components/common/Tabs';
+import Select from '../../components/common/Select';
+
+// 숫자 포맷팅 유틸리티
+import { formatNumber, unformatNumber } from '../../utils/numberFormat';
+
+const FinancialStatementForm = () => {
+  const navigate = useNavigate();
+  const { year } = useParams();
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('balanceSheet');
+  const [availableYears, setAvailableYears] = useState([]);
+  
+  // 연도 옵션 생성 (현재 연도로부터 5년 전까지)
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 5 }, (_, i) => ({
+    value: (currentYear - 4 + i).toString(),
+    label: (currentYear - 4 + i).toString()
+  }));
+  
+  // 폼 초기화
+  const initialValues = {
+    // 재무제표 데이터
+    assets: {
+      current: '',  // 유동자산
+      nonCurrent: ''  // 비유동자산
+    },
+    liabilities: {
+      current: '',  // 유동부채
+      nonCurrent: ''  // 비유동부채
+    },
+    equity: '',  // 자본총계
+    
+    // 손익계산서 데이터
+    revenue: '',  // 매출액
+    costOfSales: '',  // 매출원가
+    grossProfit: '0',  // 매출총이익 (자동계산)
+    operatingProfit: '',  // 영업이익
+    
+    // 판매비와 관리비
+    selling: {
+      salary: '',  // 급여(판관비)
+      retirement: '',  // 퇴직급여(판관비)
+      welfare: '',  // 복리후생비(판관비)
+      rent: '',  // 지급임차료(판관비)
+      tax: '',  // 세금과공과(판관비)
+      depreciation: '',  // 감가상각비(판관비)
+      total: '0'  // 판매비와 관리비 총합 (자동계산)
+    },
+    
+    // 제조원가명세서
+    manufacturing: {
+      labor: '',  // 노무비
+      retirement: '',  // 퇴직급여(제조원가)
+      welfare: '',  // 복리후생비(제조원가)
+      rent: '',  // 지급임차료(제조원가)
+      tax: '',  // 세금과공과(제조원가)
+      depreciation: '',  // 감가상각비(제조원가)
+      total: '0'  // 제조원가명세서 총합 (자동계산)
+    },
+    
+    // 금융비용
+    financial: {
+      interestIncome: '',  // 이자수익
+      interestExpense: '',  // 이자비용
+      total: '0'  // 금융비용 총합 (자동계산)
+    },
+    
+    addedValue: '0',  // 부가가치 (자동계산)
+    
+    // 인원현황 데이터
+    employees: {
+      regular: '',  // 정규직 근로자
+      nonRegular: ''  // 비정규직 근로자(계약/단시간)
+    },
+    nonEmployees: {
+      contracted: '',  // 도급 근로자
+      dispatched: ''  // 파견 근로자
+    },
+    totalEmployees: '0'  // 총 인원 (자동계산)
+  };
+  
+  // 해당 연도의 재무 데이터 불러오기
+  useEffect(() => {
+    const fetchFinancialData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          navigate('/login');
+          return;
+        }
+        
+        // 저장된 모든 연도의 재무 데이터 확인
+        const allDataResponse = await axios.get('/api/financial', {
+          headers: { 'x-auth-token': token }
+        });
+        
+        if (allDataResponse.data) {
+          const years = allDataResponse.data.map(item => item.year.toString());
+          setAvailableYears(years);
+        }
+        
+        // 선택한 연도의 데이터가 있으면 불러오기
+        if (year) {
+          const response = await axios.get(`/api/financial/${year}`, {
+            headers: { 'x-auth-token': token }
+          });
+          
+          if (response.data) {
+            const data = response.data;
+            
+            // 데이터 포맷팅하여 폼에 설정
+            formik.setValues({
+              assets: {
+                current: formatNumber(data.financialStatement.assets.current || 0),
+                nonCurrent: formatNumber(data.financialStatement.assets.nonCurrent || 0)
+              },
+              liabilities: {
+                current: formatNumber(data.financialStatement.liabilities.current || 0),
+                nonCurrent: formatNumber(data.financialStatement.liabilities.nonCurrent || 0)
+              },
+              equity: formatNumber(data.financialStatement.equity || 0),
+              
+              revenue: formatNumber(data.incomeStatement.revenue || 0),
+              costOfSales: formatNumber(data.incomeStatement.costOfSales || 0),
+              grossProfit: formatNumber(data.incomeStatement.grossProfit || 0),
+              operatingProfit: formatNumber(data.incomeStatement.operatingProfit || 0),
+              
+              selling: {
+                salary: formatNumber(data.incomeStatement.sellingExpenses.salary || 0),
+                retirement: formatNumber(data.incomeStatement.sellingExpenses.retirement || 0),
+                welfare: formatNumber(data.incomeStatement.sellingExpenses.welfare || 0),
+                rent: formatNumber(data.incomeStatement.sellingExpenses.rent || 0),
+                tax: formatNumber(data.incomeStatement.sellingExpenses.tax || 0),
+                depreciation: formatNumber(data.incomeStatement.sellingExpenses.depreciation || 0),
+                total: formatNumber(data.incomeStatement.sellingExpenses.total || 0)
+              },
+              
+              manufacturing: {
+                labor: formatNumber(data.incomeStatement.manufacturingCosts.labor || 0),
+                retirement: formatNumber(data.incomeStatement.manufacturingCosts.retirement || 0),
+                welfare: formatNumber(data.incomeStatement.manufacturingCosts.welfare || 0),
+                rent: formatNumber(data.incomeStatement.manufacturingCosts.rent || 0),
+                tax: formatNumber(data.incomeStatement.manufacturingCosts.tax || 0),
+                depreciation: formatNumber(data.incomeStatement.manufacturingCosts.depreciation || 0),
+                total: formatNumber(data.incomeStatement.manufacturingCosts.total || 0)
+              },
+              
+              financial: {
+                interestIncome: formatNumber(data.incomeStatement.financialExpenses.interestIncome || 0),
+                interestExpense: formatNumber(data.incomeStatement.financialExpenses.interestExpense || 0),
+                total: formatNumber(data.incomeStatement.financialExpenses.total || 0)
+              },
+              
+              addedValue: formatNumber(data.incomeStatement.addedValue || 0),
+              
+              employees: {
+                regular: data.employeeData.employees.regular || '',
+                nonRegular: data.employeeData.employees.nonRegular || ''
+              },
+              nonEmployees: {
+                contracted: data.employeeData.nonEmployees.contracted || '',
+                dispatched: data.employeeData.nonEmployees.dispatched || ''
+              },
+              totalEmployees: (data.employeeData.employees.regular || 0) + 
+                            (data.employeeData.employees.nonRegular || 0) + 
+                            (data.employeeData.nonEmployees.contracted || 0) + 
+                            (data.employeeData.nonEmployees.dispatched || 0)
+            });
+          }
+        }
+      } catch (error) {
+        console.error('재무 데이터 불러오기 실패:', error);
+        toast.error('재무 데이터를 불러올 수 없습니다');
+      }
+    };
+    
+    fetchFinancialData();
+  }, [year]);
+  
+  // Formik 설정
+  const formik = useFormik({
+    initialValues,
+    validationSchema: Yup.object({
+      // 재무제표 유효성 검사
+      assets: Yup.object({
+        current: Yup.string().required('유동자산을 입력해주세요'),
+        nonCurrent: Yup.string().required('비유동자산을 입력해주세요')
+      }),
+      liabilities: Yup.object({
+        current: Yup.string().required('유동부채를 입력해주세요'),
+        nonCurrent: Yup.string().required('비유동부채를 입력해주세요')
+      }),
+      equity: Yup.string().required('자본총계를 입력해주세요'),
+      
+      // 손익계산서 유효성 검사
+      revenue: Yup.string().required('매출액을 입력해주세요'),
+      costOfSales: Yup.string().required('매출원가를 입력해주세요'),
+      operatingProfit: Yup.string().required('영업이익을 입력해주세요'),
+      
+      // 인원현황 유효성 검사
+      employees: Yup.object({
+        regular: Yup.number().required('정규직 근로자 수를 입력해주세요').min(0, '0 이상의 값을 입력해주세요'),
+        nonRegular: Yup.number().required('비정규직 근로자 수를 입력해주세요').min(0, '0 이상의 값을 입력해주세요')
+      }),
+      nonEmployees: Yup.object({
+        contracted: Yup.number().required('도급 근로자 수를 입력해주세요').min(0, '0 

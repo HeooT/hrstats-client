@@ -1,0 +1,383 @@
+// client/src/pages/CompanyInfo/CompanyInfoForm.js
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
+import { toast } from 'react-toastify';
+import axios from 'axios';
+
+// 공통 컴포넌트 
+import Button from '../../components/common/Button';
+import Input from '../../components/common/Input';
+import Select from '../../components/common/Select';
+import Card from '../../components/common/Card';
+
+// 산업 분류 데이터 (한국표준산업분류 기준)
+const INDUSTRY_OPTIONS = [
+  { value: 'A', label: 'A. 농업, 임업 및 어업' },
+  { value: 'B', label: 'B. 광업' },
+  { value: 'C', label: 'C. 제조업' },
+  { value: 'D', label: 'D. 전기, 가스, 증기 및 공기 조절 공급업' },
+  { value: 'E', label: 'E. 수도, 하수 및 폐기물 처리, 원료 재생업' },
+  { value: 'F', label: 'F. 건설업' },
+  { value: 'G', label: 'G. 도매 및 소매업' },
+  { value: 'H', label: 'H. 운수 및 창고업' },
+  { value: 'I', label: 'I. 숙박 및 음식점업' },
+  { value: 'J', label: 'J. 정보통신업' },
+  { value: 'K', label: 'K. 금융 및 보험업' },
+  { value: 'L', label: 'L. 부동산업' },
+  { value: 'M', label: 'M. 전문, 과학 및 기술 서비스업' },
+  { value: 'N', label: 'N. 사업시설 관리, 사업 지원 및 임대 서비스업' },
+  { value: 'O', label: 'O. 공공 행정, 국방 및 사회보장 행정' },
+  { value: 'P', label: 'P. 교육 서비스업' },
+  { value: 'Q', label: 'Q. 보건업 및 사회복지 서비스업' },
+  { value: 'R', label: 'R. 예술, 스포츠 및 여가관련 서비스업' },
+  { value: 'S', label: 'S. 협회 및 단체, 수리 및 기타 개인 서비스업' },
+  { value: 'T', label: 'T. 가구 내 고용활동 및 달리 분류되지 않은 자가 소비 생산활동' },
+  { value: 'U', label: 'U. 국제 및 외국기관' }
+];
+
+// 기업 규모 옵션
+const COMPANY_SIZE_OPTIONS = [
+  { value: '대기업', label: '대기업' },
+  { value: '중견기업', label: '중견기업' },
+  { value: '중소기업', label: '중소기업' }
+];
+
+const CompanyInfoForm = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [companyData, setCompanyData] = useState(null);
+
+  // 기존 기업 정보 불러오기
+  useEffect(() => {
+    const fetchCompanyData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          navigate('/login');
+          return;
+        }
+
+        const response = await axios.get('/api/company', {
+          headers: { 'x-auth-token': token }
+        });
+
+        if (response.data) {
+          setCompanyData(response.data);
+          formik.setValues({
+            name: response.data.name || '',
+            industry: response.data.industry || '',
+            size: response.data.size || '',
+            businessNumber: response.data.businessNumber || '',
+            foundedYear: response.data.foundedYear || ''
+          });
+        }
+      } catch (error) {
+        console.error('기업 정보 불러오기 실패:', error);
+        // 새 기업인 경우 무시
+      }
+    };
+
+    fetchCompanyData();
+  }, []);
+
+  // 사업자등록번호 형식 처리 함수
+  const formatBusinessNumber = (value) => {
+    if (!value) return value;
+    
+    // 숫자만 추출
+    const numbers = value.replace(/[^\d]/g, '');
+    
+    // 형식에 맞게 하이픈 추가 (###-##-#####)
+    if (numbers.length <= 3) {
+      return numbers;
+    } else if (numbers.length <= 5) {
+      return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+    } else {
+      return `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-${numbers.slice(5, 10)}`;
+    }
+  };
+
+  // Formik 설정
+  const formik = useFormik({
+    initialValues: {
+      name: '',
+      industry: '',
+      size: '',
+      businessNumber: '',
+      foundedYear: new Date().getFullYear()
+    },
+    validationSchema: Yup.object({
+      name: Yup.string().required('기업명을 입력해주세요'),
+      industry: Yup.string().required('업종을 선택해주세요'),
+      size: Yup.string().required('기업 규모를 선택해주세요'),
+      businessNumber: Yup.string()
+        .required('사업자 등록번호를 입력해주세요')
+        .matches(/^\d{3}-\d{2}-\d{5}$/, '올바른 사업자 등록번호 형식이 아닙니다 (예: 123-45-67890)'),
+      foundedYear: Yup.number()
+        .required('설립연도를 입력해주세요')
+        .min(1900, '1900년 이후로 입력해주세요')
+        .max(new Date().getFullYear(), '현재 연도까지만 입력 가능합니다')
+    }),
+    onSubmit: async (values) => {
+      setLoading(true);
+      
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          navigate('/login');
+          return;
+        }
+        
+        const endpoint = companyData ? '/api/company' : '/api/company';
+        const method = companyData ? 'put' : 'post';
+        
+        const response = await axios[method](endpoint, values, {
+          headers: { 'x-auth-token': token }
+        });
+        
+        toast.success(companyData ? '기업 정보가 수정되었습니다' : '기업 정보가 등록되었습니다');
+        
+        // 진단 유형 선택 페이지로 이동
+        navigate('/diagnosis-type');
+      } catch (error) {
+        console.error('기업 정보 저장 실패:', error);
+        toast.error(error.response?.data?.msg || '기업 정보 저장에 실패했습니다');
+      } finally {
+        setLoading(false);
+      }
+    }
+  });
+
+  // 사업자등록번호 입력 핸들러
+  const handleBusinessNumberChange = (e) => {
+    const formatted = formatBusinessNumber(e.target.value);
+    formik.setFieldValue('businessNumber', formatted);
+  };
+
+  // 공공데이터포털 API를 활용한 사업자등록번호 기반 정보 자동 완성
+  const fetchCompanyInfoByBusinessNumber = async () => {
+    if (!formik.values.businessNumber || formik.errors.businessNumber) {
+      toast.warn('유효한 사업자 등록번호를 입력해주세요');
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      // 실제 API 호출 구현 (현재는 예시)
+      // const response = await axios.get(`/api/company/info/${formik.values.businessNumber}`);
+      
+      // API 호출 성공 시, 데이터를 폼에 채움 (예시 데이터)
+      setTimeout(() => {
+        // 실제 구현 시 아래 예시 데이터 대신 API 응답 사용
+        const mockData = {
+          name: '인사이트 컨설팅',
+          industry: 'M',
+          foundedYear: 2023
+        };
+        
+        formik.setValues({
+          ...formik.values,
+          name: mockData.name,
+          industry: mockData.industry,
+          foundedYear: mockData.foundedYear
+        });
+        
+        toast.success('기업 정보를 불러왔습니다');
+        setLoading(false);
+      }, 1000);
+    } catch (error) {
+      console.error('기업 정보 자동 완성 실패:', error);
+      toast.error('기업 정보를 불러올 수 없습니다');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card title="기업정보 입력">
+      <form onSubmit={formik.handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* 회사명 */}
+          <div>
+            <Input
+              label="회사명"
+              id="name"
+              name="name"
+              type="text"
+              placeholder="회사명을 입력해주세요"
+              value={formik.values.name}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched.name && formik.errors.name}
+              required
+            />
+          </div>
+
+          {/* 업종 */}
+          <div>
+            <Select
+              label="업종"
+              id="industry"
+              name="industry"
+              options={INDUSTRY_OPTIONS}
+              value={formik.values.industry}
+              onChange={(e) => formik.setFieldValue('industry', e.target.value)}
+              onBlur={formik.handleBlur}
+              error={formik.touched.industry && formik.errors.industry}
+              required
+            />
+          </div>
+
+          {/* 기업 규모 */}
+          <div>
+            <Select
+              label="기업 규모"
+              id="size"
+              name="size"
+              options={COMPANY_SIZE_OPTIONS}
+              value={formik.values.size}
+              onChange={(e) => formik.setFieldValue('size', e.target.value)}
+              onBlur={formik.handleBlur}
+              error={formik.touched.size && formik.errors.size}
+              required
+            />
+          </div>
+
+          {/* 사업자 등록번호 */}
+          <div className="relative">
+            <Input
+              label="사업자 등록번호"
+              id="businessNumber"
+              name="businessNumber"
+              type="text"
+              placeholder="예: 123-45-67890"
+              value={formik.values.businessNumber}
+              onChange={handleBusinessNumberChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched.businessNumber && formik.errors.businessNumber}
+              required
+            />
+            <button
+              type="button"
+              className="absolute right-2 top-8 text-blue-600 text-sm px-2 py-1 rounded hover:bg-blue-50"
+              onClick={fetchCompanyInfoByBusinessNumber}
+              disabled={loading}
+            >
+              정보 조회
+            </button>
+          </div>
+
+          {/* 설립연도 */}
+          <div>
+            <Input
+              label="설립연도"
+              id="foundedYear"
+              name="foundedYear"
+              type="number"
+              min={1900}
+              max={new Date().getFullYear()}
+              value={formik.values.foundedYear}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched.foundedYear && formik.errors.foundedYear}
+            />
+          </div>
+        </div>
+
+        {/* 인사이트 컨설팅 홍보 요소 */}
+        <div className="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <h3 className="text-lg font-medium text-gray-900 mb-2">인사이트 컨설팅 서비스</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <a
+              href="/files/company-introduction.pdf"
+              download
+              className="text-blue-600 hover:text-blue-800 flex items-center"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 mr-2"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
+                />
+              </svg>
+              회사소개서 다운로드
+            </a>
+            <a
+              href="/files/consulting-proposal.pdf"
+              download
+              className="text-blue-600 hover:text-blue-800 flex items-center"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 mr-2"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              컨설팅 제안서 다운로드
+            </a>
+            <a
+              href="https://www.insight-consulting.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 flex items-center"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 mr-2"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
+              </svg>
+              홈페이지 방문
+            </a>
+          </div>
+        </div>
+
+        {/* 버튼 */}
+        <div className="flex justify-end space-x-4">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => navigate(-1)}
+            disabled={loading}
+          >
+            취소
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={loading || !formik.isValid}
+          >
+            {loading ? '저장 중...' : (companyData ? '수정하기' : '저장하기')}
+          </Button>
+        </div>
+      </form>
+    </Card>
+  );
+};
+
+export default CompanyInfoForm;

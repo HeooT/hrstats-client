@@ -1,0 +1,471 @@
+// client/src/components/common/Button.js
+import React from 'react';
+
+const Button = ({ 
+  children, 
+  variant = 'primary', 
+  type = 'button', 
+  onClick, 
+  disabled = false,
+  fullWidth = false,
+  className = '',
+  ...rest 
+}) => {
+  // 버튼 스타일 설정
+  const baseStyles = 'inline-flex items-center justify-center px-4 py-2 border text-sm font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors duration-200';
+  
+  const variantStyles = {
+    primary: 'border-transparent text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 disabled:bg-blue-300',
+    secondary: 'border-transparent text-white bg-gray-600 hover:bg-gray-700 focus:ring-gray-500 disabled:bg-gray-300',
+    outline: 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:ring-blue-500 disabled:text-gray-400',
+    text: 'border-transparent text-blue-600 bg-transparent hover:bg-blue-50 focus:ring-blue-500 shadow-none disabled:text-blue-300'
+  };
+  
+  const sizeStyles = fullWidth ? 'w-full' : '';
+  
+  const buttonStyles = `${baseStyles} ${variantStyles[variant]} ${sizeStyles} ${className}`;
+  
+  return (
+    <button
+      type={type}
+      className={buttonStyles}
+      onClick={onClick}
+      disabled={disabled}
+      {...rest}
+    >
+      {children}
+    </button>
+  );
+};
+
+export default Button;
+
+// client/src/components/common/Card.js
+import React from 'react';
+
+const Card = ({ 
+  children, 
+  title, 
+  subtitle,
+  actions,
+  className = '',
+  bodyClassName = '',
+  ...rest 
+}) => {
+  return (
+    <div 
+      className={`bg-white shadow overflow-hidden rounded-lg ${className}`}
+      {...rest}
+    >
+      {title && (
+        <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
+          <h3 className="text-lg leading-6 font-medium text-gray-900">
+            {title}
+          </h3>
+          {subtitle && (
+            <p className="mt-1 max-w-2xl text-sm text-gray-500">
+              {subtitle}
+            </p>
+          )}
+          {actions && (
+            <div className="mt-4 flex justify-end">
+              {actions}
+            </div>
+          )}
+        </div>
+      )}
+      <div className={`px-4 py-5 sm:p-6 ${bodyClassName}`}>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+export default Card;
+
+// client/src/components/common/Input.js
+import React from 'react';
+
+const Input = ({ 
+  label, 
+  id, 
+  name, 
+  type = 'text', 
+  placeholder = '', 
+  value, 
+  onChange,
+  onBlur,
+  error,
+  required = false,
+  className = '',
+  inputClassName = '',
+  ...rest 
+}) => {
+  return (
+    <div className={className}>
+      {label && (
+        <label htmlFor={id} className="block text-sm font-medium text-gray-700">
+          {label}
+          {required && <span className="text-red-500 ml-1">*</span>}
+        </label>
+      )}
+      <div className="mt-1">
+        <input
+          id={id}
+          name={name}
+          type={type}
+          placeholder={placeholder}
+          value={value}
+          onChange={onChange}
+          onBlur={onBlur}
+          required={required}
+          className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${error ? 'border-red-300' : ''} ${inputClassName}`}
+          {...rest}
+        />
+      </div>
+      {error && (
+        <p className="mt-1 text-sm text-red-600">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+};
+
+export default Input;
+
+// client/src/components/common/Select.js
+import React from 'react';
+
+const Select = ({ 
+  label, 
+  id, 
+  name, 
+  options = [], 
+  value, 
+  onChange,
+  onBlur,
+  error,
+  required = false,
+  placeholder = '선택해주세요',
+  className = '',
+  selectClassName = '',
+  ...rest 
+}) => {
+  return (
+    <div className={className}>
+      {label && (
+        <label htmlFor={id} className="block text-sm font-medium text-gray-700">
+          {label}
+          {required && <span className="text-red-500 ml-1">*</span>}
+        </label>
+      )}
+      <div className="mt-1">
+        <select
+          id={id}
+          name={name}
+          value={value}
+          onChange={onChange}
+          onBlur={onBlur}
+          required={required}
+          className={`shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md ${error ? 'border-red-300' : ''} ${selectClassName}`}
+          {...rest}
+        >
+          {placeholder && (
+            <option value="" disabled>{placeholder}</option>
+          )}
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      {error && (
+        <p className="mt-1 text-sm text-red-600">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+};
+
+export default Select;
+
+// client/src/components/common/Spinner.js
+import React from 'react';
+
+const Spinner = ({ size = 'md', className = '' }) => {
+  const sizeClasses = {
+    sm: 'w-4 h-4 border-2',
+    md: 'w-8 h-8 border-4',
+    lg: 'w-12 h-12 border-4'
+  };
+  
+  return (
+    <div className={`spinner ${className}`}>
+      <div className={`animate-spin rounded-full border-t-transparent border-blue-500 ${sizeClasses[size]}`}></div>
+    </div>
+  );
+};
+
+export default Spinner;
+
+// client/src/components/common/Tabs.js
+import React from 'react';
+
+const Tabs = ({ options = [], activeTab, onChange }) => {
+  return (
+    <div className="border-b border-gray-200">
+      <nav className="-mb-px flex space-x-8">
+        {options.map((option) => (
+          <button
+            key={option.id}
+            id={`${option.id}-tab`}
+            className={`
+              whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
+              ${activeTab === option.id
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
+            `}
+            onClick={() => onChange(option.id)}
+            type="button"
+          >
+            {option.label}
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
+};
+
+export default Tabs;
+
+// client/src/utils/numberFormat.js
+/**
+ * 숫자에 천 단위 콤마를 추가하는 함수
+ * @param {number|string} number - 포맷팅할 숫자 또는 문자열
+ * @returns {string} 천 단위 콤마가 추가된 문자열
+ */
+export const formatNumber = (number) => {
+  if (number === null || number === undefined || number === '') {
+    return '';
+  }
+  
+  // 이미 포맷된 문자열이면 그대로 반환
+  if (typeof number === 'string' && number.includes(',')) {
+    return number;
+  }
+  
+  // 숫자로 변환
+  const numberValue = parseFloat(number);
+  
+  // 숫자가 아니면 빈 문자열 반환
+  if (isNaN(numberValue)) {
+    return '';
+  }
+  
+  // 천 단위 콤마 추가
+  return numberValue.toLocaleString('ko-KR');
+};
+
+/**
+ * 천 단위 콤마가 포함된 문자열에서 콤마를 제거하고 숫자로 변환하는 함수
+ * @param {string} formattedNumber - 천 단위 콤마가 포함된 문자열
+ * @returns {number} 콤마가 제거된 숫자
+ */
+export const unformatNumber = (formattedNumber) => {
+  if (formattedNumber === null || formattedNumber === undefined || formattedNumber === '') {
+    return 0;
+  }
+  
+  // 문자열로 변환 후 콤마 제거
+  const numberString = formattedNumber.toString().replace(/,/g, '');
+  
+  // 숫자로 변환
+  const number = parseFloat(numberString);
+  
+  // 숫자가 아니면 0 반환
+  return isNaN(number) ? 0 : number;
+};
+
+// client/src/components/charts/BarChart.js
+import React from 'react';
+import { Bar } from 'recharts';
+import { ResponsiveContainer, BarChart as RechartsBarChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+
+const BarChart = ({ 
+  data, 
+  width = '100%', 
+  height = 400, 
+  xAxisDataKey = 'name',
+  bars = [{ dataKey: 'value', fill: '#8884d8', name: '값' }],
+  margin = { top: 20, right: 30, left: 20, bottom: 5 }
+}) => {
+  return (
+    <ResponsiveContainer width={width} height={height}>
+      <RechartsBarChart
+        data={data}
+        margin={margin}
+      >
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey={xAxisDataKey} />
+        <YAxis />
+        <Tooltip />
+        <Legend />
+        {bars.map((bar, index) => (
+          <Bar
+            key={index}
+            dataKey={bar.dataKey}
+            fill={bar.fill}
+            name={bar.name}
+          />
+        ))}
+      </RechartsBarChart>
+    </ResponsiveContainer>
+  );
+};
+
+export default BarChart;
+
+// client/src/components/charts/LineChart.js
+import React from 'react';
+import { Line } from 'recharts';
+import { ResponsiveContainer, LineChart as RechartsLineChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+
+const LineChart = ({ 
+  data, 
+  width = '100%', 
+  height = 400, 
+  xAxisDataKey = 'name',
+  lines = [{ dataKey: 'value', stroke: '#8884d8', name: '값' }],
+  margin = { top: 20, right: 30, left: 20, bottom: 5 }
+}) => {
+  return (
+    <ResponsiveContainer width={width} height={height}>
+      <RechartsLineChart
+        data={data}
+        margin={margin}
+      >
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey={xAxisDataKey} />
+        <YAxis />
+        <Tooltip />
+        <Legend />
+        {lines.map((line, index) => (
+          <Line
+            key={index}
+            type="monotone"
+            dataKey={line.dataKey}
+            stroke={line.stroke}
+            name={line.name}
+            activeDot={{ r: 8 }}
+          />
+        ))}
+      </RechartsLineChart>
+    </ResponsiveContainer>
+  );
+};
+
+export default LineChart;
+
+// client/src/components/charts/ComparisonChart.js
+import React from 'react';
+import { Bar } from 'recharts';
+import { ResponsiveContainer, BarChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+
+const ComparisonChart = ({ 
+  data, 
+  width = '100%', 
+  height = 400, 
+  companyKey = 'company',
+  industryKey = 'industry',
+  companyName = '당사',
+  industryName = '산업 평균',
+  companyColor = '#8884d8',
+  industryColor = '#82ca9d',
+  margin = { top: 20, right: 30, left: 20, bottom: 5 }
+}) => {
+  return (
+    <ResponsiveContainer width={width} height={height}>
+      <BarChart
+        data={data}
+        margin={margin}
+      >
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="name" />
+        <YAxis />
+        <Tooltip />
+        <Legend />
+        <Bar dataKey={companyKey} fill={companyColor} name={companyName} />
+        <Bar dataKey={industryKey} fill={industryColor} name={industryName} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+};
+
+export default ComparisonChart;
+
+// client/src/components/charts/GaugeChart.js
+import React from 'react';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+
+const GaugeChart = ({ 
+  value = 0, 
+  min = 0, 
+  max = 100, 
+  width = '100%', 
+  height = 200,
+  colors = ['#FF0000', '#FFFF00', '#00FF00'],
+  thresholds = [33, 66]
+}) => {
+  // 값을 0~100 사이로 정규화
+  const normalizedValue = ((value - min) / (max - min)) * 100;
+  
+  // 색상 결정
+  let color;
+  if (normalizedValue < thresholds[0]) {
+    color = colors[0];
+  } else if (normalizedValue < thresholds[1]) {
+    color = colors[1];
+  } else {
+    color = colors[2];
+  }
+  
+  // 게이지 차트 데이터
+  const data = [
+    { name: 'value', value: normalizedValue },
+    { name: 'empty', value: 100 - normalizedValue }
+  ];
+  
+  return (
+    <div className="relative">
+      <ResponsiveContainer width={width} height={height}>
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="100%"
+            startAngle={180}
+            endAngle={0}
+            innerRadius={60}
+            outerRadius={80}
+            paddingAngle={0}
+            dataKey="value"
+          >
+            <Cell key="value" fill={color} />
+            <Cell key="empty" fill="#eee" />
+          </Pie>
+        </PieChart>
+      </ResponsiveContainer>
+      <div className="absolute inset-0 flex items-center justify-center mb-8">
+        <div className="text-center">
+          <div className="text-3xl font-bold">{value}</div>
+          <div className="text-sm text-gray-500">{min} - {max}</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default GaugeChart;
